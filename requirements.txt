@@ -1,6 +1,7 @@
 websocket-client==1.4.1
 openpyxl==3.0.10
 pyyaml==6.0.1
-backtesting==0.3.3
+backtrader==1.9.78.123
 bokeh==2.4.3
 ta-lib==0.4.28
+matplotlib

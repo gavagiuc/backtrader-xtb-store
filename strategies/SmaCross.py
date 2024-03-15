@@ -1,16 +1,22 @@
-from backtesting import Strategy
-from backtesting.lib import crossover
-from backtesting.test import SMA
+from datetime import datetime
+import backtrader as bt
 
-class SmaCross(Strategy):
-    n1 = 10
-    n2 = 20
-    def init(self):
-        close = self.data.Close
-        self.sma1 = self.I(SMA, close, self.n1)
-        self.sma2 = self.I(SMA, close, self.n2)
+class SmaCross(bt.Strategy):
+    # list of parameters which are configurable for the strategy
+    params = dict(
+        pfast=10,  # period for the fast moving average
+        pslow=30   # period for the slow moving average
+    )
+
+    def __init__(self):
+        sma1 = bt.ind.SMA(period=self.p.pfast)  # fast moving average
+        sma2 = bt.ind.SMA(period=self.p.pslow)  # slow moving average
+        self.crossover = bt.ind.CrossOver(sma1, sma2)  # crossover signal
+
     def next(self):
-        if crossover(self.sma1, self.sma2):
-            self.buy()
-        elif crossover(self.sma2, self.sma1):
-            self.sell()
+        if not self.position:  # not in the market
+            if self.crossover > 0:  # if fast crosses slow to the upside
+                self.buy()  # enter long
+
+        elif self.crossover < 0:  # in the market & cross to the downside
+            self.close()  # close long position

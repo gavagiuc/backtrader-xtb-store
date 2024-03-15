@@ -228,12 +228,12 @@ class XTB:
             start_qty=0
         for i in range(start_qty, qty):
             candle={}
-            candle["DateTime"]=str(result["returnData"]["rateInfos"][i]["ctmString"])
-            candle["Open"]=result["returnData"]["rateInfos"][i]["open"]
-            candle["Close"]=result["returnData"]["rateInfos"][i]["open"] + result["returnData"]["rateInfos"][i]["close"]
-            candle["High"]=result["returnData"]["rateInfos"][i]["open"] + result["returnData"]["rateInfos"][i]["high"]
-            candle["Low"]=result["returnData"]["rateInfos"][i]["open"] + result["returnData"]["rateInfos"][i]["low"]
-            candle["Volume"]=result["returnData"]["rateInfos"][i]["vol"]
+            candle["datetime"]=str(result["returnData"]["rateInfos"][i]["ctmString"])
+            candle["open"]=result["returnData"]["rateInfos"][i]["open"]
+            candle["close"]=result["returnData"]["rateInfos"][i]["open"] + result["returnData"]["rateInfos"][i]["close"]
+            candle["high"]=result["returnData"]["rateInfos"][i]["open"] + result["returnData"]["rateInfos"][i]["high"]
+            candle["low"]=result["returnData"]["rateInfos"][i]["open"] + result["returnData"]["rateInfos"][i]["low"]
+            candle["volume"]=result["returnData"]["rateInfos"][i]["vol"]
             candles.append(candle)
         if len(candles)==1:
             return False

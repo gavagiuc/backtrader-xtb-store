@@ -1,11 +1,11 @@
 from API import XTB
-from backtesting import Backtest
 import pandas as pd
 import os
 import logging
 import json
 import yaml
 from strategies import *
+import backtrader as bt
 
 # load config.yaml file
 with open("config.yaml", "r") as file:
@@ -28,35 +28,20 @@ if __name__ == "__main__":
         print(ticker)
         candles = API.get_CandlesRange(period="H1", symbol=ticker, days=60)
 
-        df = pd.DataFrame.from_dict(candles, orient='columns')
+        dataframe = pd.DataFrame.from_dict(candles)
         # set index for df to DateTime column
-        df['DateTime'] = pd.to_datetime(df['DateTime'], infer_datetime_format=True)
-        df.set_index('DateTime', inplace=True)
+        dataframe['datetime'] = pd.to_datetime(dataframe['datetime'])
+        dataframe['volume'] = dataframe['volume'].astype(int)
+        dataframe.set_index('datetime', inplace=True)
 
-        bt = Backtest(df, RsiOscilator,
-              cash=10000, commission=.002,
-              exclusive_orders=True)
-        stats = bt.optimize(
-            uppper_bound=range(50, 85, 5),
-            lower_bound=range(10, 45, 5),
-            rsi_window=range(10, 30, 2),
-            maximize = 'Sharpe Ratio'
-        )
-        print("=========================STATS===============================")
-        print(stats)
-        print("===============================================================")
-        # output = bt.run()
-        # print("=========================BACKTEST===============================")
-        # print(output)
-        # print("===============================================================")
-        bt.plot(filename=f"backtest_{ticker}.html")
-
-    # # save symbols to file as json
-    # # Convert symbols to JSON
-    # symbols_json = json.dumps(symbols["returnData"])
-    # # Save symbols to file
-    # with open('/home/cosmin/algotrading-bot/symbols.json', 'w') as file:
-    #     file.write(symbols_json)
+        data = bt.feeds.PandasData(dataname=dataframe)
+        
+        cerebro = bt.Cerebro()
+        cerebro.broker.setcash(balance)
+        cerebro.adddata(data)
+        cerebro.addstrategy(SmaCross)
+        cerebro.run()
+        cerebro.plot()
 
     
 
