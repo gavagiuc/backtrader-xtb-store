@@ -1,1 +1,2 @@
-from .strategy import SmaCross
+from .SmaCross import *
+from .RsiOscilator import *
