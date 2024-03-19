@@ -1,5 +1,9 @@
 import websocket, json, openpyxl
+import pandas as pd
+import time
+
 from datetime import datetime, timedelta
+
 
 class XTB:
     __version__ = "1.0"
@@ -59,6 +63,7 @@ class XTB:
         result = self.send(allsymbols_json)
         result = json.loads(result)
         return result
+
 
     def get_Candles(self, period, symbol, days=0, hours=0, minutes=0, qty_candles=0):
         if period=="M1":
@@ -158,24 +163,39 @@ class XTB:
         vol     Volume in lots
         '''
 
+
+    def fetch_ohlcv(self, symbol, timeframe, since, limit, fromdate, todate, params):
+        
+        start = datetime.strftime(fromdate, '%m/%d/%Y %H:%M:%S')
+        end = datetime.strftime(todate, '%m/%d/%Y %H:%M:%S')
+
+        candles = self.get_CandlesRange(period=timeframe, symbol=symbol, start=start, end=end)
+        # convert candles to ohlcv
+        ohlcv = []
+        for candle in candles:
+            # load 'Jan 3, 2024, 12:00:00 AM' to int imestamp
+            intdate = int(datetime.strptime(candle['datetime'], '%b %d, %Y, %I:%M:%S %p').timestamp())
+            ohlcv.append([intdate, candle['open'], candle['high'], candle['low'], candle['close'], candle['volume']])
+        return ohlcv
+
     def get_CandlesRange(self, period, symbol, start=0, end=0, days=0, qty_candles=0):
-        if period=="M1":
+        if period=="1m":
             period=1
-        elif period=="M5":
+        elif period=="5m":
             period=5
-        elif period=="M15":
+        elif period=="15m":
             period=15
-        elif period=="M30":
+        elif period=="30m":
             period=30
-        elif period=="H1":
+        elif period=="1m":
             period=60
-        elif period=="H4":
+        elif period=="4m":
             period=240
-        elif period=="D1":
+        elif period=="1d":
             period=1440
-        elif period=="W1":
+        elif period=="1w":
             period=10080
-        elif period=="MN1":
+        elif period=="1M":
             period=43200
         
         if end==0:
@@ -423,6 +443,20 @@ class XTB:
     REJECTED	4	The transaction has been rejected
     '''
 
+    # http://developers.xstore.pro/documentation/#getTrades
+    def fetch_trades(self, symbol):
+        trade ={
+            "command": "getTrades",
+            "arguments": {
+		        "openedOnly": True
+	        }
+        }
+        trade_json = json.dumps(trade)
+        result = self.send(trade_json)
+        result = json.loads(result)
+        return result["returnData"]
+
+
     def get_History(self, start=0, end=0, days=0, hours=0, minutes=0):
         if start!=0:
             start = self.time_conversion(start)
@@ -568,6 +602,7 @@ class XTB:
 
     def send(self, msg):
         self.is_on()
+        time.sleep(0.2)  # add 200ms wait time
         self.ws.send(msg)
         result = self.ws.recv()
         return result+"\n"

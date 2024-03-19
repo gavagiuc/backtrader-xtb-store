@@ -1,5 +1,6 @@
 from xtb.api import XTB
 from xtb.store import XTBStore
+ 
 import pandas as pd
 import os
 import logging
@@ -7,14 +8,27 @@ import json
 import yaml
 from strategies import *
 import backtrader as bt
+from datetime import datetime, timedelta
+from backtrader_plotting import Bokeh
+
+import pandas as pd
+import quantstats
 
 # load config.yaml file
 with open("config.yaml", "r") as file:
     config = yaml.safe_load(file)
 
+XTB_ID = os.environ.get("XTB_USER")
+XTB_PASSWORD = os.environ.get("XTB_PASSWORD")
 
-ID = os.environ.get("XTB_USER")
-PASSWORD = os.environ.get("XTB_PASSWORD")
+# xtb = XTB(XTB_ID, XTB_PASSWORD)
+# xtb.login()
+# # writte symbols to config file
+# symbols = xtb.get_AllSymbols()
+# with open("symbols.yaml", "w") as file:
+#     json.dumps(symbols, file)
+
+
 logging.basicConfig(level=logging.INFO)
 
 """
@@ -28,40 +42,29 @@ IS_LIVE = False
 
 if __name__ == "__main__":
 
-    
-    API = XTB(ID, PASSWORD)
-    API.login()
-    balance = API.get_Balance()
-    logging.info(f"balance {balance}")       
-
     for symbol in config["tickers"]:
-        print(symbol)
-        # candles = API.get_CandlesRange(period="H1", symbol=ticker, days=60)
 
-        # dataframe = pd.DataFrame.from_dict(candles)
-        # # set index for df to DateTime column
-        # dataframe['datetime'] = pd.to_datetime(dataframe['datetime'])
-        # dataframe['volume'] = dataframe['volume'].astype(int)
-        # dataframe.set_index('datetime', inplace=True)
-
-        # data = bt.feeds.PandasData(dataname=dataframe)
-        
         cerebro = bt.Cerebro()
-        cerebro.addstrategy(SmaCross)
-        cerebro.broker.setcash(balance)
-        
+        cerebro.addobserver(bt.observers.DrawDown)
+        cerebro.addstrategy(SmaCross)        
+
+        # INITIATE STORE
         store = XTBStore(
-            key_id=os.environ.get("XTB_USER"),
-            secret_key=os.environ.get("XTB_PASSWORD")
+            key_id=XTB_ID,
+            secret_key=XTB_PASSWORD
         )
 
+        # INITIATE GETDATA
         DataFactory = store.getdata  # or use alpaca_backtrader_api.AlpacaData
         if IS_BACKTEST:
+            hist_start_date = datetime.now() - timedelta(days=30)
+
             data0 = DataFactory(dataname=symbol,
                                 historical=True,
-                                fromdate=datetime(2024, 1, 1),
-                                todate=datetime(2024, 3, 14),
-                                timeframe=bt.TimeFrame.Days,
+                                fromdate=datetime(2024, 2, 15, 0, 0),
+                                todate=datetime(2024, 3, 15, 0, 0),
+                                timeframe=bt.TimeFrame.Minutes,
+                                compression=15,
                                 data_feed='iex')
         else:
             data0 = DataFactory(dataname=symbol,
@@ -75,14 +78,6 @@ if __name__ == "__main__":
             cerebro.setbroker(broker)
 
         cerebro.adddata(data0)
- 
-  
 
-        
         cerebro.run()
-
         cerebro.plot(style='candle')
-    
-
-    API.logout()
-    logging.info("Logged out")

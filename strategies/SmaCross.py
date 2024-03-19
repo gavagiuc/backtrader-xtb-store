@@ -58,7 +58,10 @@ class SmaCross(bt.Strategy):
 
     def next(self):
         # Simply log the closing price of the series from the reference
-        self.log(f'Close, {self.data_close[0]:.2f}')
+        # self.log(f'Close, {self.data_close[0]:.2f}')
+
+        # self.log('DrawDown: %.2f' % self.stats.drawdown.drawdown[-1])
+        # self.log('MaxDrawDown: %.2f' % self.stats.drawdown.maxdrawdown[-1])
 
         # Check if an order is pending ... if yes, we cannot send a 2nd one
         if self.order:
@@ -79,8 +82,14 @@ class SmaCross(bt.Strategy):
         # in the market & cross to the downside
         elif self.crossover < 0:
             # SELL, SELL, SELL!!! (with all possible default parameters)
-            self.log(f'SELL CREATE @ MKT: {self.data_close[0]:.2f}')
+            #self.log(f'SELL CREATE @ MKT: {self.data_close[0]:.2f}')
 
             # Keep track of the created order to avoid a 2nd order
             self.order = self.sell()
             self.log(f'SELL CREATED Size: {self.order.size} @ MKT')
+
+    def stop(self):
+        print('==================================================')
+        print('Starting Value - %.2f' % self.broker.startingcash)
+        print('Ending   Value - %.2f' % self.broker.getvalue())
+        print('==================================================')

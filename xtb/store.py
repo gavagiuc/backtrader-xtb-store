@@ -1,27 +1,8 @@
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
-import os
-import collections
-import time
-from enum import Enum
-import traceback
-
-from datetime import datetime, timedelta, time as dtime
-from dateutil.parser import parse as date_parse
-import time as _time
-#import exchange_calendars
-import threading
-import asyncio
-
-from .api import XTB as API
-import pytz
-#import requests
-import pandas as pd
-
 import backtrader as bt
+from datetime import datetime
 from backtrader.metabase import MetaParams
-from backtrader.utils.py3 import queue, with_metaclass
-
+from backtrader.utils.py3 import with_metaclass
+from .api import XTB
 
 class MetaSingleton(MetaParams):
     '''Metaclass to make a metaclassed class a singleton'''
@@ -37,38 +18,38 @@ class MetaSingleton(MetaParams):
 
         return cls._singleton
 
-
 class XTBStore(with_metaclass(MetaSingleton, object)):
-    '''Singleton class wrapping to control the connections to XTB.
-
-    Params:
-
-      - ``key_id`` (default:``None``): Alpaca API key id
-
-      - ``secret_key`` (default: ``None``): Alpaca API secret key
-
-      - ``paper`` (default: ``False``): use the paper trading environment
-
-      - ``account_tmout`` (default: ``10.0``): refresh period for account
-        value/cash refresh
+    '''
+    API provider for XTB feed and broker classes.
     '''
 
-    BrokerCls = None  # broker class will autoregister
+    # Supported granularities
+    _GRANULARITIES = {
+        (bt.TimeFrame.Minutes, 1): '1m',
+        (bt.TimeFrame.Minutes, 3): '3m',
+        (bt.TimeFrame.Minutes, 5): '5m',
+        (bt.TimeFrame.Minutes, 15): '15m',
+        (bt.TimeFrame.Minutes, 30): '30m',
+        (bt.TimeFrame.Minutes, 60): '1h',
+        (bt.TimeFrame.Minutes, 90): '90m',
+        (bt.TimeFrame.Minutes, 120): '2h',
+        (bt.TimeFrame.Minutes, 180): '3h',
+        (bt.TimeFrame.Minutes, 240): '4h',
+        (bt.TimeFrame.Minutes, 360): '6h',
+        (bt.TimeFrame.Minutes, 480): '8h',
+        (bt.TimeFrame.Minutes, 720): '12h',
+        (bt.TimeFrame.Days, 1): '1d',
+        (bt.TimeFrame.Days, 3): '3d',
+        (bt.TimeFrame.Weeks, 1): '1w',
+        (bt.TimeFrame.Weeks, 2): '2w',
+        (bt.TimeFrame.Months, 1): '1M',
+        (bt.TimeFrame.Months, 3): '3M',
+        (bt.TimeFrame.Months, 6): '6M',
+        (bt.TimeFrame.Years, 1): '1y',
+    }
+
+    BrokerCls = None  # broker class will auto register
     DataCls = None  # data class will auto register
-
-    params = (
-        ('key_id', ''),
-        ('secret_key', ''),
-        ('paper', False),
-        ('account_tmout', 10.0),  # account balance refresh timeout
-        ('api_version', None)
-    )
-
-    _DTEPOCH = datetime(1970, 1, 1)
-    _ENVPRACTICE = 'paper'
-    _ENVLIVE = 'live'
-    _ENV_PRACTICE_URL = 'wss://ws.xtb.com/demo'
-    _ENV_LIVE_URL = 'wss://ws.xtb.com/demo'
 
     @classmethod
     def getdata(cls, *args, **kwargs):
@@ -80,29 +61,31 @@ class XTBStore(with_metaclass(MetaSingleton, object)):
         '''Returns broker with *args, **kwargs from registered ``BrokerCls``'''
         return cls.BrokerCls(*args, **kwargs)
 
-    def __init__(self):
-        super(XTBStore, self).__init__()
 
-        self.notifs = collections.deque()  # store notifications for cerebro
+    def __init__(self, key_id, secret_key):
+        self.xtbapi = XTB(key_id, secret_key)
+        self.xtbapi.login()
+        balance = self.xtbapi.get_Balance()
+        self._cash = balance
+        self._value = balance
 
-        self._env = None  # reference to cerebro for general notifications
-        self.broker = None  # broker instance
-        self.datas = list()  # datas that have registered over start
+    def fetch_ohlcv(self, symbol, timeframe, since, fromdate, todate, limit, params={}):
+        # print since to tring date
+        print('Fetching: {}, TF: {}, From: {}, To: {}'.format(symbol, timeframe, fromdate, todate))
 
-        self._orders = collections.OrderedDict()  # map order.ref to oid
-        self._ordersrev = collections.OrderedDict()  # map oid to order.ref
-        self._transpend = collections.defaultdict(collections.deque)
+        return self.xtbapi.fetch_ohlcv(symbol, 
+                                       timeframe=timeframe, 
+                                       since=since, 
+                                       limit=limit,
+                                       fromdate=fromdate,
+                                       todate=todate, 
+                                       params=params)
 
-        if self.p.paper:
-            self._oenv = self._ENVPRACTICE
-            self.p.base_url = self._ENV_PRACTICE_URL
-        else:
-            self._oenv = self._ENVLIVE
-            self.p.base_url = self._ENV_LIVE_URL
-        self.oapi = API(self.p.key_id,
-                        self.p.secret_key)
+    def get_granularity(self, timeframe, compression):
 
-        self._cash = 0.0
-        self._value = 0.0
-        self._evt_acct = threading.Event()
+        granularity = self._GRANULARITIES.get((timeframe, compression))
+        
+        return granularity
 
+    def fetch_trades(self, symbol):
+        return self.xtbapi.fetch_trades(symbol)

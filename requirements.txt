@@ -5,3 +5,4 @@ backtrader==1.9.78.123
 bokeh==2.4.3
 ta-lib==0.4.28
 matplotlib
+exchange-calendars
